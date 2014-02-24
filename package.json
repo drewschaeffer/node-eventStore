@@ -1,0 +1,27 @@
+{
+  "name": "node-eventStore",
+  "version": "0.0.0",
+  "description": "node EventStore client to the provide http interface",
+  "main": "eventStoreApi.js",
+  "dependencies": {
+    "request": "~2.34.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/drewschaeffer/node-eventStore.git"
+  },
+  "keywords": [
+    "EventStore",
+    "Node"
+  ],
+  "author": "Drew Schaeffer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/drewschaeffer/node-eventStore/issues"
+  },
+  "homepage": "https://github.com/drewschaeffer/node-eventStore"
+}
