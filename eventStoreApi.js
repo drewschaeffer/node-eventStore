@@ -1,5 +1,6 @@
 
 var request       = require('request');
+var uuid          = require('node-uuid');
 
 var api = function(settings) {
     
@@ -9,10 +10,16 @@ var api = function(settings) {
         persist: persist
     };
 
-    function persist(event) {
+    function persist(streamName, eventType, eventData) {
+
+        var event = 
+            [{ eventId: uuid.v1(),   
+               eventType: eventType,
+               data: eventData 
+            }];
 
         var options = {
-          uri: host + "streams/testevent",
+          uri: host + "streams/" + streamName,
           method: 'POST',
           json: event
         };
@@ -113,8 +120,7 @@ var projection = function (settings) {
 
             readFirstPage({
                 pageRead: pageRead,
-                noEntries: noEntries,
-                fail: defaultFail
+                noEntries: noEntries
             });
 
             function pageRead(firstPageUrl, lastEntry) {
@@ -131,8 +137,7 @@ var projection = function (settings) {
                     to: lastEntry,
                     processEvent: callback,
                     endOfStream: delayedReadAll,
-                    success: function (lastReadPageUrl, lastReadEntry) { readAll(lastReadPageUrl, lastReadEntry); },
-                    fail: defaultFail
+                    success: function (lastReadPageUrl, lastReadEntry) { readAll(lastReadPageUrl, lastReadEntry); }
                 });
             }
 
@@ -149,24 +154,28 @@ var projection = function (settings) {
 
             var pageRead = sets.pageRead;
             var noEntries = sets.noEntries;
-            var fail = sets.fail;
 
-            $.ajax(firstPageUrl, {
-                headers: {
-                    'Accept': 'application/json'
-                },
-                success: function (page) {
+            console.log(host, firstPageUrl);
+
+            var options = {
+                uri: host + firstPageUrl,
+                method: 'GET',
+            };
+
+            request.get(options, function (err, response, page) {
+                    
+                    if (err) {                        
+                        setTimeout(function () { readFirstPage(sets); }, 1000);
+                        return;
+                    }
+
                     if (page.entries.length === 0) {
                         noEntries();
                     }
                     var lastEntry = page.entries[0];
                     var lastPage = $.grep(page.links, function (link) { return link.relation === 'last'; })[0].uri;
                     pageRead(lastPage, lastEntry);
-                },
-                error: function (jqXhr, status, error) {
-                    setTimeout(function () { readFirstPage(sets); }, 1000);
-                }
-            });
+                });
         }
 
         function readRange(sets) {
@@ -176,7 +185,6 @@ var projection = function (settings) {
             var to = sets.to;
             var processEvent = sets.processEvent;
             var success = sets.success;
-            var fail = sets.fail;
 
             readByPages(page);
 
@@ -191,8 +199,7 @@ var projection = function (settings) {
                     },
                     onUpperBound: function (lastReadPageUrl, lastReadEntry) {
                         success(lastReadPageUrl, lastReadEntry);
-                    },
-                    fail: fail
+                    }
                 });
             }
         }
@@ -205,9 +212,8 @@ var projection = function (settings) {
             var processEvent = sets.processEvent;
             var onPageRead = sets.onPageRead;
             var onUpperBound = sets.onUpperBound;
-            var fail = sets.fail;
 
-            $.ajax(pageUrl, {
+            request.get(pageUrl, {
                 headers: {
                     'Accept': 'application/json'
                 },
@@ -357,4 +363,4 @@ var projection = function (settings) {
     }
 };
 
-exports.EsApi = api;
+exports.EsApi = { api: api, projection: projection };
