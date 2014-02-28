@@ -3,19 +3,20 @@ var http = require("http");
 var url = require('url');
 
 //var esApi = require('./eventStoreApi');
-//var sr = require('./streamFeedReader');
+var sr = require('./streamFeedReader');
 
 //var api = esApi.EsApi.api({ host: "http://localhost:2113/" });
 
 //api.persist("teststream", "test-event", { a: "2" });
 
-//var reader = sr.esReader("http://localhost:2113/streams/");
+var reader = sr.esReader("http://localhost:9449/streams/");
 
-//var p = reader.read("teststream")
-//.then(function(data) { console.log('in success', data); })
+var p = reader.read("testevent")
+.then(function(data) { console.log('in success', data); });
 //.fail(function(err) { console.log('in err', err);})
-//.catch(function(ee) { console.log('in catch', ee)}).done();
+//.catch(function(ee) { console.log('in catch', ee)});
 
+/*
  var options = url.parse('http://localhost:9449/streams/testevent?embed=body');
   options.agent = false;
   options.method = 'GET';
@@ -38,3 +39,4 @@ var url = require('url');
     console.log('err', err);
   }).end();
 
+*/

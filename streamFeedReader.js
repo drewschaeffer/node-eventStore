@@ -1,8 +1,10 @@
 
 var http = require("http");
 var q = require("q");
-var u = require("url");
+var url = require("url");
 
+
+// use dfd.notify to do a call back type stream rather than get all events...
 exports.esReader = function(feedUri) {   
 
     if (!feedUri) {
@@ -16,73 +18,68 @@ exports.esReader = function(feedUri) {
     function readLastFromHead (streamName) {                                        
         var dfd = q.defer();
 
-        var uri = u.parse(feedUri + streamName + '?embed=body');
-        var options = 
-        {
-            url: uri.protocol + '//' + uri.hostname,
-            port: uri.port,
-            path: uri.path,
-            method:'GET'
-        };
-        console.log(options);
-        var req = http.request(options, function(res) {
-          console.log(res.statusCode);
-          if (res.statusCode != 200) dfd.reject();
-          res.setEncoding('utf8');
-          res.on('data', function (data) {
-            var lastlinks = data.links.filter(function(link) { 
-                return link.relation === 'last'; 
-            });
-            if (lastlinks.length > 0) {               
-                dfd.resolve(lastlinks[0].uri);           
-            } else {
-                dfd.resolve(feeduri + streamname);
-            }
-          });
-        });
+        var options = url.parse(feedUri + streamName + '?embed=body');
+        options.agent = false;
+        options.method = 'GET';
 
-        req.on('error', function(e) {
-            dfd.reject();
-        });
+          http.request(options, function(response) {       
+            var body = '';
+            response.on('data', function(chunk) {
+              body += chunk.toString();
+            }).on('end', function() {
+                body = JSON.parse(body);
+
+                var lastlinks = body.links.filter(function(link) { 
+                return link.relation === 'last'; 
+                });
+                if (lastlinks.length > 0) {               
+                    dfd.resolve(lastlinks[0].uri);           
+                } else {
+                    dfd.resolve(feedUri + streamName);
+                }
+              
+            }).on('close', function() {
+                dfd.reject();
+            }).setEncoding('utf8');
+          }).on('error', function(err) {
+                dfd.reject();
+          }).end();
                  
         return dfd.promise;
     };              
 
-    var traverseToFirst = function (uri, entries, dfd) {   
+    function traverseToFirst (uri, entries, dfd) {   
                 
-        var uri = u.parse(uri + '?embed=body');
-        var options = 
-        {
-            url: uri.protocol + '//' + uri.hostname,
-            port: uri.port,
-            path: uri.path,
-        };
-        var req = http.request(options, function(res) {
-            console.log(res.statusCode);
-          if (res.statusCode != 200) dfd.reject();
-          res.setEncoding('utf8');
-          res.on('data', function (data) {
-            var reversedEntries = data.entries.reverse();
+        var options = url.parse(uri + '?embed=body');
+        options.agent = false;
+        options.method = 'GET';
 
-            for (var i = 0; i < reversedEntries.length; i++) {
-                entries.push(reversedEntries[i]);
-            }            
+        http.request(options, function(response) {
+            var body = '';
+            response.on('data', function (chunk) {
+                body += chunk.toString();
+                }).on('end', function() {
+                body = JSON.parse(body);
+                var reversedEntries = body.entries.reverse();
 
-            var previousLinks = data.links.filter(function(link) { 
-                return link.relation === 'previous'; 
-            });            
+                for (var i = 0; i < reversedEntries.length; i++) {
+                    entries.push(reversedEntries[i]);
+                }            
 
-            if (previousLinks.length === 1) {
-                traverseToFirst(previousLinks[0].uri, entries, dfd);
-            } else {                
-                dfd.resolve(entries);
-            }
-          });
-        });
-
-        req.on('error', function(e) {
-            dfd.reject();
-        });                                  
+                var previousLinks = body.links.filter(function(link) { 
+                    return link.relation === 'previous'; 
+                });            
+                if (previousLinks.length === 1) {
+                    traverseToFirst(previousLinks[0].uri, entries, dfd);
+                } else {             
+                    dfd.resolve(entries);
+                }
+            }).on('close', function() {               
+                dfd.reject();
+            }).setEncoding('utf8');
+          }).on('error', function(err) {        
+                dfd.reject();
+          }).end();
     };  
 
     function read (streamName) {                   
@@ -92,12 +89,12 @@ exports.esReader = function(feedUri) {
 
         var dfd = q.defer();                           
         
-        readLastFromHead(streamName).done(function(lastUri) {
+        readLastFromHead(streamName).then(function(lastUri) {
+            console.log('lasturi', lastUri);
             var entries = [];                        
             traverseToFirst(lastUri, entries, dfd);                
-        });
 
-         //.fail(function() {             dfd.reject();         });    
+        });
 
         return dfd.promise;              
     };
